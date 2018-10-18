@@ -71,13 +71,13 @@
       /* Calculate the Binormal */
       float3 Equation_4(float x, float y)
       {
-        return float3(1, Equation_1(x, y, _Time.y), 0);
+        return float3(1, 2 / _Wavelength * dot(_Direction.xz, float2(x, 0)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 0);
       }
 
       /* Tangent */
       float3 Equation_5(float x, float y)
       {
-        return float3(0, 2 / _Wavelength * dot(_Direction.xz, float2(x, y)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 1);
+        return float3(0, 2 / _Wavelength * dot(_Direction.xz, float2(0, y)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 1);
       }
       
       /* Normal */
@@ -107,7 +107,7 @@
         // Equation 3 is the final position P for each vertex.xy in time.
         o.vertex.y += Equation_1(v.vertex.x, v.vertex.z, _Time.y);
 
-        o.color.xyz = normalize(Equation_5(v.vertex.x, v.vertex.z));
+        o.color.xyz = normalize(Equation_6(v.vertex.x, v.vertex.z));
         o.color.w = 1.0;
 
         return o;
