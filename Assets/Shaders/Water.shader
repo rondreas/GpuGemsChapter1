@@ -34,6 +34,7 @@
       struct v2f
       {
         float4 vertex : SV_POSITION;
+        float4 color: COLOR;
       };
 
       // Our properties exposed in Unity must be made into variables readable by the CG compiler,
@@ -63,24 +64,26 @@
 
       /*
        *  Normals and Tangents,
+       *  I think the document is using a Z-up world where as Unity used Y-up, so will likely have to move
+       *  the partial differential equation to fit accordingly.
        */
 
       /* Calculate the Binormal */
       float3 Equation_4(float x, float y)
       {
-        return float3(1, 0, 0);
+        return float3(1, Equation_1(x, y, _Time.y), 0);
       }
 
       /* Tangent */
       float3 Equation_5(float x, float y)
       {
-        return float3(1, 0, 0);
+        return float3(0, 2 / _Wavelength * dot(_Direction.xz, float2(x, y)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 1);
       }
       
       /* Normal */
       float3 Equation_6(float x, float y)
       {
-        return float3(1, 0, 0);
+        return cross(Equation_4(x, y), Equation_5(x, y));
       }
 
       // v2f, seeing as this is the structure we will return. And we call this function vert 
@@ -104,6 +107,9 @@
         // Equation 3 is the final position P for each vertex.xy in time.
         o.vertex.y += Equation_1(v.vertex.x, v.vertex.z, _Time.y);
 
+        o.color.xyz = normalize(Equation_5(v.vertex.x, v.vertex.z));
+        o.color.w = 1.0;
+
         return o;
       }
       
@@ -111,7 +117,7 @@
       // Pixel shader, now that we know the position for each vertex. Draw a flat gray color for all surfaces.
       fixed4 frag (v2f i) : SV_Target
       {
-        fixed4 col = fixed4(0.5, 0.5, 0.5, 1.0);
+        fixed4 col = i.color;
         return col;
       }
 
