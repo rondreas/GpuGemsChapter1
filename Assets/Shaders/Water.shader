@@ -20,6 +20,9 @@
       // Preprocessors to define vertex and fragment shaders as vert and frag respectively
       #pragma vertex vert
       #pragma fragment frag
+
+      // Include debug symbols to allow debugging in Renderdoc.
+      #pragma enable_d3d11_debug_symbols 
       
       // Include the cginc file from your Unity installation (../Unity/2018.1.0f2/Editor/Data/CGIncludes)
       // defining a lot of helper functions and utilities. We're not using any in this version however.
@@ -45,15 +48,17 @@
       float _Speed;
       float4 _Direction;
 
-      /*
-       *  Equation 1.
-       *    Wi(x,y,t) = Ai * sin(dot(Di, float2(x, y)) * wi + t * PHASE) 
-       *
-       *  Wave is a function of the vertex position on the horizontal plane, and time.
-       *
-       */
-      float Equation_1(float x, float y, float t)
+      float height(float x, float y, float t)
       {
+        /*
+         *  Equation 1.
+         *    Wi(x,y,t) = Ai * sin(dot(Di, float2(x, y)) * wi + t * PHASE) 
+         *
+         *  Wave is a function of the vertex position on the horizontal plane, and time.
+         *  i denotes which wave we're forming. n=0 -> N
+         *
+         */
+
         float w = 2 / _Wavelength;
         float phase = _Speed * w;
 
@@ -62,28 +67,46 @@
         return wave;
       }
 
-      /*
-       *  Normals and Tangents,
-       *  I think the document is using a Z-up world where as Unity used Y-up, so will likely have to move
-       *  the partial differential equation to fit accordingly.
-       */
+      // Following https://squircleart.github.io/shading/normal-map-generation.html
+      // helped me finially solve the partial derivatives for the height function.
 
-      /* Calculate the Binormal */
-      float3 Equation_4(float x, float y)
+      // I couldn't solve it using the equations provided in the GPU Gems chapter so if you know
+      // how one could utilze them instead I'm all ears.
+
+      // NOTE everywhere I've looked it's always the -dx and -dy but this resulted in normals
+      // pointing the wrong direction, using vertex world position.
+
+      // Forward Finite Difference
+      float3 FFD(float x, float y)
       {
-        return float3(1, 2 / _Wavelength * dot(_Direction.xz, float2(x, 0)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 0);
+        float h = 0.001;
+
+        float dx = (height(x + h, y, _Time.y) - height(x, y, _Time.y)) / h;
+        float dy = (height(x, y + h, _Time.y) - height(x, y, _Time.y)) / h;
+
+        return float3(dx, 1, dy);
       }
 
-      /* Tangent */
-      float3 Equation_5(float x, float y)
+      // Backward Finite Difference
+      float3 BFD(float x, float y)
       {
-        return float3(0, 2 / _Wavelength * dot(_Direction.xz, float2(0, y)) * _Amplitude * cos(dot(_Direction.xz, float2(x, y)) * 2 / _Wavelength + _Time.y * _Speed * 2 / _Wavelength) , 1);
+        float h = 0.001;
+
+        float dx = (height(x + h, y, _Time.y) - height(x, y, _Time.y)) / h;
+        float dy = (height(x, y + h, _Time.y) - height(x, y, _Time.y)) / h;
+
+        return float3(dx, 1, dy);
       }
-      
-      /* Normal */
-      float3 Equation_6(float x, float y)
+
+      // Central Finite Difference
+      float3 CFD(float x, float y)
       {
-        return cross(Equation_4(x, y), Equation_5(x, y));
+        float h = 0.001;
+
+        float dx = (height(x + h, y, _Time.y) - height(x - h, y, _Time.y)) / h;
+        float dy = (height(x, y + h, _Time.y) - height(x, y - h, _Time.y)) / h;
+
+        return float3(dx, 1, dy);
       }
 
       // v2f, seeing as this is the structure we will return. And we call this function vert 
@@ -103,16 +126,26 @@
          *  Explained at Unity Answers: http://answers.unity.com/answers/1292847/view.html
          */
 
+        // Get the vertex world position,
+        float4 worldpos = mul(unity_ObjectToWorld, v.vertex);
+
         // Equation 2 is the sum of all waves, and for now we only have one.
         // Equation 3 is the final position P for each vertex.xy in time.
-        o.vertex.y += Equation_1(v.vertex.x, v.vertex.z, _Time.y);
+        worldpos.y += height(worldpos.x, worldpos.z, _Time.y);
 
-        o.color.xyz = normalize(Equation_6(v.vertex.x, v.vertex.z));
+        // Convert the solved worldposition back into object space to transform our vert.
+        o.vertex.y += mul(unity_WorldToObject, worldpos.y);
+
+        // Using the Central Finite Difference to solve the partial derivatives required
+        // to solve the normal, we also normalize the vector and remap values to be within
+        // color space 0->1
+        o.color.xyz = normalize(CFD(worldpos.x, worldpos.z)) * 0.5 + 0.5;
+
+        // Set alpha to fully opaque,
         o.color.w = 1.0;
 
         return o;
       }
-      
       
       // Pixel shader, now that we know the position for each vertex. Draw a flat gray color for all surfaces.
       fixed4 frag (v2f i) : SV_Target
