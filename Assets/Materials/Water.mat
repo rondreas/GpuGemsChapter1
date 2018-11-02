@@ -56,6 +56,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _Amplitude: 1
+    - _Amplitude_01: 0.26
+    - _Amplitude_02: 0.26
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
@@ -71,11 +73,17 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _Speed: 1
+    - _Speed_01: 2
+    - _Speed_02: 0.97
     - _SrcBlend: 1
     - _UVSec: 0
     - _Wavelength: 2
+    - _Wavelength_01: 1
+    - _Wavelength_02: 1
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _Direction: {r: 0.5, g: 0, b: 0.5, a: 1}
+    - _Direction: {r: -0.5, g: 0, b: -0.5, a: 1}
+    - _Direction_01: {r: -0.5, g: 0, b: -0.5, a: 1}
+    - _Direction_02: {r: 0, g: 0, b: -1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
